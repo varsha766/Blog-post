@@ -1,4 +1,3 @@
-## A Step-by-Step Guide to Asymmetric JWT Authentication
 A JWT (JSON Web Token) is an open standard for securely transmitting information between parties as a JSON object. It contains claims — data about the user or system — that are digitally signed. This digital signature ensures the token’s content is verifiable and tamper-proof, making JWTs a popular choice for API authentication, single sign-on (SSO), and authorization in modern web applications.
 ### Understanding JWT Authentication Model
 JWTs(JSON Web Tokens) provide a stateless way to authenticate users and authorize access to APIs. Unlike traditional session-based authentication, where the server stores session information, JWTs store all necessary information inside the token itself.
