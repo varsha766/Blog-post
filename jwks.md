@@ -161,9 +161,3 @@ While symmetric JWTs are simpler to implement, asymmetric JWTs offer significant
    - Token verification in client-side apps or third-party services without exposing sensitive credentials.
 ### Wrapping Up
 💻 Demo Code: [GitHub Repository](https://github.com/varsha766/jwk)
-
-
-
-
-
-
