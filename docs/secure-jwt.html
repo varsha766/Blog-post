@@ -1,0 +1,245 @@
+<h2>Securing JWT in Production: What Matters Beyond RS256</h2>
+
+<p>
+In my previous article, I explained how to implement <strong>asymmetric JWT authentication using RS256</strong>.
+While choosing an asymmetric algorithm is an important step, <strong>JWT security does not end with key pairs and signatures</strong>.
+</p>
+
+<p>
+In real-world systems, JWT-related vulnerabilities usually happen because of poor claim design, long token lifetimes,
+weak validation, or insecure storage.
+</p>
+
+<p>
+In this article, we’ll focus on how to make JWT truly secure in production — beyond just signing it correctly.
+</p>
+
+<h3>Why Asymmetric JWT Alone Is Not Enough</h3>
+
+<p>Using RS256:</p>
+<ul>
+  <li>Tokens are signed with a private key</li>
+  <li>Tokens can be verified using a public key</li>
+  <li>Secrets don’t need to be shared across services</li>
+</ul>
+
+<p>However, even with RS256:</p>
+<ul>
+  <li>A stolen token is still valid until it expires</li>
+  <li>Sensitive data in the payload can still be exposed</li>
+</ul>
+
+<p>
+<strong>
+Security depends on how JWT is designed, issued, stored, and validated — not just the algorithm.
+</strong>
+</p>
+
+<h3>Security Goals of a JWT</h3>
+
+<p>
+Before defining claims or expiry, it’s important to understand what a secure JWT should guarantee:
+</p>
+
+<p><strong>1. Integrity</strong> — the token must not be tampered with</p>
+<p><strong>2. Authenticity</strong> — the issuer must be trusted</p>
+<p><strong>3. Limited lifetime</strong> — tokens should expire quickly</p>
+<p><strong>4. Controlled usage</strong> — tokens should only work where intended</p>
+
+<p>
+Every JWT design decision should support these goals.
+</p>
+
+<h3>Mandatory JWT Claims You Should Always Validate</h3>
+
+<p>
+A signed JWT is useless if its claims are not validated properly.
+</p>
+
+<p><code>iss</code> <strong>(Issuer)</strong></p>
+<p>Identifies <strong>who issued the token</strong>.</p>
+
+<p>Why it matters:</p>
+<ul>
+  <li>Prevents tokens issued by another system from being accepted</li>
+  <li>Especially important in multi-environment setups</li>
+</ul>
+
+<p>Always validate <code>iss</code> against a known value.</p>
+
+<p><code>aud</code> <strong>(Audience)</strong></p>
+<p>Defines <strong>who the token is intended for</strong>.</p>
+
+<p>Why it matters:</p>
+<ul>
+  <li>Prevents token reuse across different APIs or services</li>
+  <li>Critical in microservices architectures</li>
+</ul>
+
+<p>Never skip audience validation.</p>
+
+<p><code>exp</code> <strong>(Expiration Time)</strong></p>
+<p>Defines when the token becomes invalid.</p>
+
+<p>Why it matters:</p>
+<ul>
+  <li>Limits damage if a token is leaked</li>
+  <li>Reduces replay attacks</li>
+</ul>
+
+<p><strong>Short expiry is non-negotiable.</strong></p>
+
+<p><code>sub</code> <strong>(Subject)</strong></p>
+<p>Represents the identity of the user or entity.</p>
+
+<p>Best practices:</p>
+<ul>
+  <li>Use a stable internal identifier (userId)</li>
+  <li>Avoid emails or mutable identifiers</li>
+</ul>
+
+<p><code>iat</code> <strong>(Issued At)</strong> and <code>jti</code> <strong>(JWT ID)</strong></p>
+<ul>
+  <li><code>iat</code> helps detect old or replayed tokens</li>
+  <li><code>jti</code> uniquely identifies a token and enables revocation or blacklisting</li>
+</ul>
+
+<p>
+These claims become very useful in advanced security scenarios.
+</p>
+
+<h3>Designing Token Expiry the Right Way</h3>
+
+<p>
+One of the most common JWT mistakes is <strong>long-lived access tokens</strong>.
+</p>
+
+<h4>Recommended Approach</h4>
+<ul>
+  <li><strong>Access Token:</strong> 5–15 minutes</li>
+  <li><strong>Refresh Token:</strong> Longer-lived, stored securely</li>
+</ul>
+
+<p>Why short-lived access tokens?</p>
+<ul>
+  <li>Limits the impact of token leakage</li>
+  <li>Reduces the need for complex revocation logic</li>
+</ul>
+
+<p>
+JWTs are stateless — expiry is your strongest defense.
+</p>
+
+<h3>Refresh Tokens and Token Rotation Strategy</h3>
+
+<p>
+Since asymmetric JWTs are hard to revoke immediately, <strong>refresh tokens are essential</strong>.
+</p>
+
+<p>Best practices:</p>
+<ul>
+  <li>Store refresh tokens in a database or Redis</li>
+  <li>Rotate refresh tokens on every use</li>
+  <li>Invalidate old refresh tokens immediately</li>
+  <li>Never expose refresh tokens to JavaScript if possible</li>
+</ul>
+
+<p>
+This gives you control even in a stateless authentication system.
+</p>
+
+<h3>Key Management in Asymmetric JWT</h3>
+
+<p>
+Asymmetric JWT security heavily depends on <strong>key management</strong>.
+</p>
+
+<p><strong>Private Key</strong></p>
+<ul>
+  <li>Must never leave the authentication server</li>
+  <li>Should be stored securely (environment variables or a secret manager)</li>
+</ul>
+
+<p><strong>Public Key</strong></p>
+<ul>
+  <li>Can be shared safely</li>
+  <li>Often exposed via a <strong>JWKS endpoint</strong></li>
+</ul>
+
+<p><code>kid</code> <strong>(Key ID)</strong></p>
+<ul>
+  <li>Helps identify which key was used to sign the token</li>
+  <li>Enables seamless key rotation without downtime</li>
+</ul>
+
+<p>
+Key rotation should be planned from day one.
+</p>
+
+<h3>Correct JWT Validation on the Server</h3>
+
+<p>
+JWT validation must be strict and explicit.
+</p>
+
+<p>Always:</p>
+<ul>
+  <li>Verify the signature</li>
+  <li>Whitelist allowed algorithms (never trust the token header)</li>
+  <li>Validate <code>iss</code>, <code>aud</code>, and <code>exp</code></li>
+  <li>Handle clock skew safely</li>
+  <li>Reject malformed or partially valid tokens</li>
+</ul>
+
+<p>
+A token that is mostly valid is still <strong>invalid</strong>.
+</p>
+
+<h3>Secure JWT Storage on the Client Side</h3>
+
+<p>
+Even a perfectly signed JWT can be stolen if stored incorrectly.
+</p>
+
+<p><strong>Avoid</strong></p>
+<ul>
+  <li>LocalStorage</li>
+  <li>SessionStorage</li>
+</ul>
+
+<p>These are vulnerable to XSS attacks.</p>
+
+<p><strong>Recommended</strong></p>
+<ul>
+  <li>HttpOnly cookies</li>
+  <li>Secure and SameSite flags enabled</li>
+</ul>
+
+<h3>Common JWT Security Mistakes (Even with RS256)</h3>
+
+<ul>
+  <li>Accepting both <code>HS256</code> and <code>RS256</code></li>
+  <li>Not validating <code>aud</code></li>
+  <li>Very long token expiry</li>
+  <li>Putting sensitive data in the payload</li>
+  <li>Assuming <em>signed</em> means <em>encrypted</em></li>
+</ul>
+
+<h3>Final Thoughts</h3>
+
+<p>
+JWT is not insecure by design — <strong>incorrect implementation is</strong>.
+</p>
+
+<p>
+While asymmetric algorithms like RS256 address key-sharing and trust boundaries,
+true JWT security comes from careful claim design, short token lifetimes,
+strict validation, secure storage, and disciplined key management.
+A signed token alone does not guarantee safety.
+</p>
+
+<p>
+Treat JWT as a <strong>security boundary</strong>, not just a convenient authentication mechanism.
+When used thoughtfully and validated rigorously, JWT can scale securely across modern,
+distributed production systems.
+</p>
